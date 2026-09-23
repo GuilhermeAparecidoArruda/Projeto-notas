@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-const API_URL = 'http://localhost:3000/api/notes';
+const API_URL = 'https://projeto-notas-seven.vercel.app/api/notes';
 const FOLDERS = [
   { id: 'work', label: 'Trabalho', color: 'work' },
   { id: 'personal', label: 'Pessoal', color: 'personal' },
