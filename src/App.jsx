@@ -100,9 +100,9 @@ function App() {
         <div className="brand"><img className="note-logo" src="/logo.svg" alt="Logo Notas" /><h1>Notas</h1></div>
         <button className="new-note-button" onClick={openNewNote}><span className="button-symbol">+</span> Nova nota</button>
         <nav className="main-nav" aria-label="Filtros de notas">
-          <button className={activeView === 'all' && !activeFolder ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('all'); setActiveFolder(null); }}><span className="nav-symbol all-symbol" /> Todas as notas <b>{notes.length}</b></button>
-          <button className={activeView === 'favorites' && !activeFolder ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('favorites'); setActiveFolder(null); }}><span className="nav-symbol star-symbol">☆</span> Favoritas <b>{favoriteCount}</b></button>
-          <button className={activeView === 'trash' ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('trash'); setActiveFolder(null); }}><span className="nav-symbol trash-symbol" /> Lixeira</button>
+          <button className={activeView === 'all' && !activeFolder ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('all'); setActiveFolder(null); }}><img className="nav-icon" src="/icons/notes.svg" alt="" /> Todas as notas <b>{notes.length}</b></button>
+          <button className={activeView === 'favorites' && !activeFolder ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('favorites'); setActiveFolder(null); }}><img className="nav-icon" src="/icons/favorites.svg" alt="" /> Favoritas <b>{favoriteCount}</b></button>
+          <button className={activeView === 'trash' ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveView('trash'); setActiveFolder(null); }}><img className="nav-icon" src="/icons/trash.svg" alt="" /> Lixeira</button>
         </nav>
         <div className="folders"><p>Pastas</p>{FOLDERS.map((folder) => <button key={folder.id} className={activeFolder === folder.id ? 'folder-active' : ''} onClick={() => { setActiveFolder(activeFolder === folder.id ? null : folder.id); setActiveView('all'); }}><i className={`folder-dot ${folder.color}`} /> {folder.label}<b>{folderCount(folder.id)}</b></button>)}</div>
         <div className="sidebar-footer"><span className="status-dot" /> API conectada localmente</div>
