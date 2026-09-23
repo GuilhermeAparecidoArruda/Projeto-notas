@@ -12,7 +12,9 @@ const formatDate = (value) => {
 };
 
 async function request(url = API_URL, options = {}) {
-  const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const requestOptions = { ...options };
+  if (requestOptions.body) requestOptions.headers = { 'Content-Type': 'application/json', ...(requestOptions.headers || {}) };
+  const response = await fetch(url, requestOptions);
   if (!response.ok) throw new Error('Não foi possível concluir a operação.');
   return response.json();
 }
