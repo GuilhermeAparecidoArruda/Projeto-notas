@@ -1,0 +1,121 @@
+import { useEffect, useMemo, useState } from 'react';
+
+const API_URL = 'http://localhost:3000/api/notes';
+
+const getNoteDate = (note) => note.criadoEm || note.atualizadoEm;
+
+const formatDate = (value) => {
+  if (!value) return 'Sem data';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sem data';
+  return new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date).replace('.', '');
+};
+
+async function request(url = API_URL, options = {}) {
+  const response = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+  if (!response.ok) throw new Error('Não foi possível concluir a operação.');
+  return response.json();
+}
+
+function App() {
+  const [notes, setNotes] = useState([]);
+  const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('appdata-favorites') || '[]'));
+  const [activeView, setActiveView] = useState('all');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('recent');
+  const [selectedId, setSelectedId] = useState(null);
+  const [editor, setEditor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    request().then(setNotes).catch(() => setError('Não foi possível conectar à API. Verifique se o backend está rodando na porta 3000.')).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => localStorage.setItem('appdata-favorites', JSON.stringify(favorites)), [favorites]);
+
+  const filteredNotes = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return [...notes].filter((note) => {
+      const matchesSearch = !term || `${note.titulo} ${note.texto}`.toLowerCase().includes(term);
+      const matchesView = activeView === 'all' || (activeView === 'favorites' && favorites.includes(note.id));
+      return matchesSearch && matchesView;
+    }).sort((a, b) => sort === 'alphabetical' ? (a.titulo || '').localeCompare(b.titulo || '') : new Date(getNoteDate(b) || 0) - new Date(getNoteDate(a) || 0));
+  }, [activeView, favorites, notes, search, sort]);
+
+  const openNewNote = () => { setError(''); setEditor({ titulo: '', texto: '', isNew: true }); };
+  const openNote = (note) => { setSelectedId(note.id); setEditor({ ...note, isNew: false }); };
+
+  const saveNote = async (event) => {
+    event.preventDefault();
+    if (!editor.titulo.trim() || !editor.texto.trim()) return;
+    setSaving(true); setError('');
+    try {
+      const saved = await request(editor.isNew ? API_URL : `${API_URL}/${editor.id}`, {
+        method: editor.isNew ? 'POST' : 'PUT',
+        body: JSON.stringify({ titulo: editor.titulo, texto: editor.texto }),
+      });
+      setNotes((current) => editor.isNew ? [...current, saved] : current.map((note) => note.id === saved.id ? saved : note));
+      setSelectedId(saved.id); setEditor({ ...saved, isNew: false });
+    } catch (saveError) { setError(saveError.message); } finally { setSaving(false); }
+  };
+
+  const deleteNote = async (note) => {
+    if (note.isNew) { setEditor(null); return; }
+    if (!window.confirm(`Excluir “${note.titulo}”?`)) return;
+    try { await request(`${API_URL}/${note.id}`, { method: 'DELETE' }); }
+    catch { setError('Não foi possível excluir a nota.'); return; }
+    setNotes((current) => current.filter((item) => item.id !== note.id));
+    setFavorites((current) => current.filter((id) => id !== note.id)); setSelectedId(null); setEditor(null);
+  };
+
+  const toggleFavorite = (id) => setFavorites((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const favoriteCount = favorites.filter((id) => notes.some((note) => note.id === id)).length;
+
+  return (
+    <main className="app-shell">
+      <aside className="sidebar">
+        <div className="brand"><span className="brand-mark">□</span><h1>Notas</h1></div>
+        <button className="new-note-button" onClick={openNewNote}><span>□</span> Nova nota</button>
+        <nav className="main-nav" aria-label="Filtros de notas">
+          <button className={activeView === 'all' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveView('all')}><span>□</span> Todas as notas <b>{notes.length}</b></button>
+          <button className={activeView === 'favorites' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveView('favorites')}><span>□</span> Favoritas <b>{favoriteCount}</b></button>
+          <button className={activeView === 'trash' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveView('trash')}><span>□</span> Lixeira</button>
+        </nav>
+        <div className="folders"><p>Pastas</p><button><i className="folder-dot work" /> Trabalho</button><button><i className="folder-dot personal" /> Pessoal</button><button><i className="folder-dot ideas" /> Ideias</button></div>
+        <div className="sidebar-footer"><span className="status-dot" /> API conectada localmente</div>
+      </aside>
+
+      <section className="workspace">
+        <header className="toolbar">
+          <label className="search-box"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar notas" /></label>
+          <label className="sort-box"><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Ordenar notas"><option value="recent">Mais recentes</option><option value="alphabetical">Ordem alfabética</option></select><span>⌄</span></label>
+        </header>
+        <div className="content">
+          <div className="content-heading"><div><p className="eyebrow">Seu espaço pessoal</p><h2>{activeView === 'favorites' ? 'Favoritas' : activeView === 'trash' ? 'Lixeira' : 'Todas as notas'}</h2></div><span className="result-count">{filteredNotes.length} {filteredNotes.length === 1 ? 'nota' : 'notas'}</span></div>
+          {error && <div className="error-banner">{error}<button onClick={() => setError('')}>×</button></div>}
+          {loading ? <div className="empty-state"><span className="loader" />Carregando suas notas...</div> : activeView === 'trash' ? <div className="empty-state"><span className="empty-icon">□</span>A lixeira está vazia.</div> : <div className="notes-grid">{filteredNotes.map((note, index) => <NoteCard key={note.id} note={note} index={index} isFavorite={favorites.includes(note.id)} isSelected={selectedId === note.id} onOpen={openNote} onFavorite={toggleFavorite} />)}<button className="new-note-card" onClick={openNewNote}><span>□</span><strong>Nova nota</strong></button></div>}
+        </div>
+      </section>
+      {editor && <NoteEditor note={editor} saving={saving} onChange={setEditor} onSave={saveNote} onDelete={deleteNote} onClose={() => setEditor(null)} />}
+    </main>
+  );
+}
+
+function NoteCard({ note, index, isFavorite, isSelected, onOpen, onFavorite }) {
+  return <article className={`note-card ${isSelected ? 'selected' : ''}`} style={{ '--delay': `${index * 70}ms` }} onClick={() => onOpen(note)}>
+    <div className="card-top"><h3>{note.titulo}</h3><button className={isFavorite ? 'favorite is-favorite' : 'favorite'} onClick={(event) => { event.stopPropagation(); onFavorite(note.id); }} aria-label="Favoritar nota">{isFavorite ? '★' : '☆'}</button></div><p>{note.texto}</p><time>{formatDate(getNoteDate(note))}</time>
+  </article>;
+}
+
+function NoteEditor({ note, saving, onChange, onSave, onDelete, onClose }) {
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="editor" onSubmit={onSave}>
+    <div className="editor-header"><span>{note.isNew ? 'NOVA NOTA' : 'EDITAR NOTA'}</span><button type="button" onClick={onClose} aria-label="Fechar">×</button></div>
+    <input className="editor-title" value={note.titulo} onChange={(event) => onChange({ ...note, titulo: event.target.value })} placeholder="Título da nota" autoFocus />
+    <textarea value={note.texto} onChange={(event) => onChange({ ...note, texto: event.target.value })} placeholder="Comece a escrever..." rows="9" />
+    <div className="editor-actions"><button type="button" className="delete-button" onClick={() => onDelete(note)}>{note.isNew ? 'Cancelar' : 'Excluir'}</button><button className="save-button" disabled={saving || !note.titulo.trim() || !note.texto.trim()}>{saving ? 'Salvando...' : 'Salvar nota'}</button></div>
+  </form></div>;
+}
+
+export default App;
