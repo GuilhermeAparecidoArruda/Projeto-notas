@@ -46,7 +46,7 @@ function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    request().then(setNotes).catch(() => setError('Não foi possível conectar à API. Verifique se o backend está rodando na porta 3000.')).finally(() => setLoading(false));
+    request().then(setNotes).catch(() => setError('Não foi possível carregar as notas. Verifique se a API publicada está disponível.')).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => localStorage.setItem('appdata-favorites', JSON.stringify(favorites)), [favorites]);
@@ -70,7 +70,7 @@ function App() {
     if (!editor.titulo.trim() || !editor.texto.trim()) return;
     setSaving(true); setError('');
     try {
-      const saved = await request(editor.isNew ? API_URL : `${API_URL}/${editor.id}`, {
+      const saved = await request(editor.isNew ? API_URL : `${API_URL}?id=${encodeURIComponent(editor.id)}`, {
         method: editor.isNew ? 'POST' : 'PUT',
         body: JSON.stringify({ titulo: editor.titulo, texto: editor.texto, tag: editor.tag }),
       });
@@ -83,7 +83,7 @@ function App() {
   const deleteNote = async (note) => {
     if (note.isNew) { setEditor(null); return; }
     if (!window.confirm(`Excluir “${note.titulo}”?`)) return;
-    try { await request(`${API_URL}/${note.id}`, { method: 'DELETE' }); }
+    try { await request(`${API_URL}?id=${encodeURIComponent(note.id)}`, { method: 'DELETE' }); }
     catch { setError('Não foi possível excluir a nota.'); return; }
     setNotes((current) => current.filter((item) => item.id !== note.id));
     setFavorites((current) => current.filter((id) => id !== note.id)); setSelectedId(null); setEditor(null);
